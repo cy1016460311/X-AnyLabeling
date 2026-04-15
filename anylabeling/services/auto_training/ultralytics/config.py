@@ -151,11 +151,55 @@ def is_mps_available() -> bool:
         return False
 
 
+def get_device_options():
+    return (
+        (["cuda"] if is_cuda_available() else [])
+        + (["mps"] if is_mps_available() else [])
+        + ["cpu"]
+    )
+
+
+def get_cuda_unavailable_reason() -> str:
+    if not is_torch_available():
+        return "PyTorch is not installed in the current runtime."
+
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return ""
+
+        cuda_visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+        if cuda_visible_devices == "-1":
+            return "CUDA is disabled by environment variable CUDA_VISIBLE_DEVICES=-1."
+
+        if hasattr(torch.backends, "cuda") and hasattr(
+            torch.backends.cuda, "is_built"
+        ):
+            if not torch.backends.cuda.is_built():
+                return (
+                    "The current PyTorch build is CPU-only. Install a CUDA-enabled "
+                    "PyTorch build to train on GPU."
+                )
+
+        if getattr(torch.version, "cuda", None) is None:
+            return (
+                "The current PyTorch build does not include CUDA support. "
+                "Install a CUDA-enabled PyTorch build to train on GPU."
+            )
+
+        if torch.cuda.device_count() == 0:
+            return (
+                "CUDA support is present, but no usable NVIDIA GPU was detected "
+                "by PyTorch."
+            )
+
+        return "CUDA is currently unavailable in the active runtime."
+    except Exception as e:
+        return f"Failed to detect CUDA availability: {e}"
+
+
 IS_TORCH_AVAILABLE = is_torch_available()
 IS_CUDA_AVAILABLE = is_cuda_available()
 IS_MPS_AVAILABLE = is_mps_available()
-DEVICE_OPTIONS = (
-    (["cuda"] if IS_CUDA_AVAILABLE else [])
-    + (["mps"] if IS_MPS_AVAILABLE else [])
-    + ["cpu"]
-)
+DEVICE_OPTIONS = get_device_options()

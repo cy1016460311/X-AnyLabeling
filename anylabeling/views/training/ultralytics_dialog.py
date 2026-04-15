@@ -473,6 +473,31 @@ class UltralyticsDialog(QDialog):
             checkbox.setChecked(True)  # Default check all GPUs
             self._cuda_layout.addWidget(checkbox)
 
+    def refresh_device_options(self):
+        device_combo = self.config_widgets["device"]
+        current_device = device_combo.currentText()
+        device_options = get_device_options()
+
+        device_combo.blockSignals(True)
+        device_combo.clear()
+        device_combo.addItems(device_options)
+
+        if current_device in device_options:
+            device_combo.setCurrentText(current_device)
+        else:
+            device_combo.setCurrentIndex(0)
+        device_combo.blockSignals(False)
+
+        cuda_reason = get_cuda_unavailable_reason()
+        if "cuda" not in device_options and cuda_reason:
+            self.device_hint_label.setText(f"CUDA unavailable: {cuda_reason}")
+            self.device_hint_label.setVisible(True)
+            device_combo.setToolTip(cuda_reason)
+        else:
+            self.device_hint_label.clear()
+            self.device_hint_label.setVisible(False)
+            device_combo.setToolTip("")
+
     def on_device_changed(self, device_text):
         if device_text == "cuda":
             try:
@@ -485,10 +510,9 @@ class UltralyticsDialog(QDialog):
                     del os.environ["CUDA_VISIBLE_DEVICES"]
                     torch.cuda.empty_cache()
                     device_count = torch.cuda.device_count()
-                    if cuda_visible_devices_backup != "-1":
-                        os.environ["CUDA_VISIBLE_DEVICES"] = (
-                            cuda_visible_devices_backup
-                        )
+                    os.environ["CUDA_VISIBLE_DEVICES"] = (
+                        cuda_visible_devices_backup
+                    )
                 else:
                     device_count = torch.cuda.device_count()
 
@@ -556,15 +580,19 @@ class UltralyticsDialog(QDialog):
 
         device_layout = QHBoxLayout()
         self.config_widgets["device"] = CustomComboBox()
-        self.config_widgets["device"].addItems(DEVICE_OPTIONS)
         self.device_checkboxes = QWidget()
         self.device_checkboxes.setVisible(False)
+        self.device_hint_label = QLabel("")
+        self.device_hint_label.setWordWrap(True)
+        self.device_hint_label.setVisible(False)
         self.config_widgets["device"].currentTextChanged.connect(
             self.on_device_changed
         )
         device_layout.addWidget(self.config_widgets["device"])
         device_layout.addWidget(self.device_checkboxes)
         layout.addRow("Device:", device_layout)
+        layout.addRow("", self.device_hint_label)
+        self.refresh_device_options()
         self.on_device_changed(self.config_widgets["device"].currentText())
 
         dataset_layout = QHBoxLayout()
