@@ -4,7 +4,7 @@ import re
 import shutil
 import random
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from ._io import load_yaml_config, save_yaml_config
 from .config import (
@@ -12,27 +12,42 @@ from .config import (
     TASK_LABEL_MAPPINGS,
     TASK_SHAPE_MAPPINGS,
 )
+from .utils import get_label_infos
+
+
+def infer_dataset_names(
+    image_list: List[str], task_type: str, output_dir: str = None
+) -> List[str]:
+    """Infer class names from the current X-AnyLabeling project annotations."""
+    if task_type == "Pose":
+        supported_shape = ["rectangle"]
+    else:
+        supported_shape = TASK_SHAPE_MAPPINGS.get(task_type, [])
+    label_infos = get_label_infos(image_list, supported_shape, output_dir)
+    return sorted(label_infos.keys())
 
 
 def create_yolo_dataset(
     image_list: List[str],
     task_type: str,
-    dataset_ratio: float,
-    data_file: str,
+    validation_ratio: float,
+    data_file: str = "",
     output_dir: str = None,
     pose_cfg_file: str = None,
     skip_empty_files: bool = False,
+    class_names: Optional[List[str]] = None,
 ) -> str:
     """Create YOLO dataset from image list and annotations.
 
     Args:
         image_list: List of image paths
         task_type: Type of detection task
-        dataset_ratio: Ratio to split train/val data
-        data_file: Path to data config file
+        validation_ratio: Ratio to split validation data
+        data_file: Optional path to data config file
         output_dir: Optional output directory for labels
         pose_cfg_file: Optional pose config file for pose detection
         skip_empty_files: Whether to skip empty label files
+        class_names: Optional class names inferred from the current labels
 
     Returns:
         Path to created dataset directory
@@ -93,7 +108,25 @@ def create_yolo_dataset(
         converter = None
         data_file_name = "classification"
     else:
-        data = load_yaml_config(data_file)
+        inferred_names = class_names or infer_dataset_names(
+            image_list, task_type, output_dir
+        )
+        if not inferred_names:
+            raise ValueError(
+                f"No valid class names found for task type: {task_type}"
+            )
+
+        if data_file and os.path.exists(data_file):
+            data = load_yaml_config(data_file)
+            if not data:
+                raise ValueError(f"Failed to load data config: {data_file}")
+            loaded_names = data.get("names", {})
+            if isinstance(loaded_names, dict) and loaded_names:
+                inferred_names = [
+                    loaded_names[i] for i in sorted(loaded_names.keys())
+                ]
+
+        data = {"names": {i: name for i, name in enumerate(inferred_names)}}
         if task_type.lower() == "pose":
             if not pose_cfg_file:
                 return (
@@ -106,7 +139,11 @@ def create_yolo_dataset(
         converter.classes = [
             data["names"][i] for i in sorted(data["names"].keys())
         ]
-        data_file_name = os.path.splitext(os.path.basename(data_file))[0]
+        data_file_name = (
+            os.path.splitext(os.path.basename(data_file))[0]
+            if data_file
+            else "autogen"
+        )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     temp_dir = os.path.join(
         get_dataset_path(), task_type.lower(), f"{data_file_name}_{timestamp}"
@@ -177,7 +214,9 @@ def create_yolo_dataset(
     # ensure train/val split is randomized
     valid_images = random.sample(valid_images, k=len(valid_images))
 
-    train_count = int(len(valid_images) * dataset_ratio)
+    validation_ratio = max(0.0, min(0.95, validation_ratio))
+    train_ratio = 1.0 - validation_ratio
+    train_count = int(len(valid_images) * train_ratio)
     train_valid_images = valid_images[:train_count]
     val_valid_images = valid_images[train_count:]
 
@@ -226,7 +265,7 @@ def create_yolo_dataset(
             f.write(f"Background images: {len(background_images)}\n")
             f.write(f"Skip empty files: {skip_empty_files}\n")
         f.write(f"Valid labeled images: {len(valid_images)}\n")
-        f.write(f"Dataset ratio: {dataset_ratio}\n")
+        f.write(f"Validation ratio: {validation_ratio}\n")
 
     yaml_file = os.path.join(temp_dir, "data.yaml")
 
@@ -253,6 +292,7 @@ def create_yolo_dataset(
         data["path"] = temp_dir
         data["train"] = "images/train"
         data["val"] = "images/val"
+        data["nc"] = len(data["names"])
 
     save_yaml_config(data, yaml_file)
 

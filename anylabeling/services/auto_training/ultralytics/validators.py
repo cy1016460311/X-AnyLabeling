@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple, Union
 
 from .utils import get_task_valid_images
 from .config import MIN_LABELED_IMAGES_THRESHOLD
+from .general import infer_dataset_names
 
 
 def validate_basic_config(config: Dict) -> Tuple[Union[bool, str], str]:
@@ -34,11 +35,12 @@ def validate_basic_config(config: Dict) -> Tuple[Union[bool, str], str]:
 
     model_path = basic.get("model", "").strip()
     if not model_path or not os.path.exists(model_path):
-        return False, "Valid model file is required"
+        return False, "Valid model config/checkpoint file is required"
 
-    data_path = basic.get("data", "").strip()
-    if not data_path or not os.path.exists(data_path):
-        return False, "Valid data file is required"
+    valid_suffixes = {".yaml", ".yml", ".pt"}
+    model_suffix = os.path.splitext(model_path)[1].lower()
+    if model_suffix not in valid_suffixes:
+        return False, "Model must be a .yaml, .yml or .pt file"
 
     return True, ""
 
@@ -128,6 +130,13 @@ def validate_task_requirements(
         return (
             False,
             f"Need at least {MIN_LABELED_IMAGES_THRESHOLD} labeled images for {task_type} task. Found: {valid_images}",
+        )
+
+    names = infer_dataset_names(image_list, task_type, output_dir)
+    if task_type != "Classify" and not names:
+        return (
+            False,
+            f"No class labels were inferred for {task_type} from the current annotations",
         )
 
     return True, ""

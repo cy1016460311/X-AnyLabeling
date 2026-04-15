@@ -6,6 +6,7 @@ import platform
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon, QPixmap
@@ -43,6 +44,7 @@ from anylabeling.services.auto_training.ultralytics.exporter import (
 from anylabeling.services.auto_training.ultralytics.general import (
     create_yolo_dataset,
     format_classes_display,
+    infer_dataset_names,
     parse_string_to_digit_list,
 )
 from anylabeling.services.auto_training.ultralytics.style import *
@@ -54,8 +56,8 @@ from anylabeling.services.auto_training.ultralytics.trainer import (
 from anylabeling.services.auto_training.ultralytics.utils import *
 from anylabeling.services.auto_training.ultralytics.validators import (
     validate_basic_config,
-    validate_data_file,
     validate_task_requirements,
+    validate_classes,
 )
 
 
@@ -82,6 +84,7 @@ class UltralyticsDialog(QDialog):
         self._detection_cache = None
         self.task_type_buttons = {}
         self.names = []
+        self.ultralytics_model_configs = []
 
         # Training related attributes
         self.log_redirector = TrainingLogRedirector()
@@ -252,6 +255,7 @@ class UltralyticsDialog(QDialog):
             else:
                 self.hide_pose_config()
 
+        self.refresh_model_config_options()
         self.refresh_dataset_summary()
 
     def create_task_handler(self, task_type):
@@ -259,6 +263,81 @@ class UltralyticsDialog(QDialog):
             self.on_task_type_selected(task_type)
 
         return handler
+
+    def _get_ultralytics_model_config_root(self):
+        try:
+            import ultralytics
+
+            return (
+                Path(ultralytics.__file__).resolve().parent / "cfg" / "models"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to locate ultralytics model configs: {e}")
+            return None
+
+    def _is_matching_model_config(self, task_type, file_name):
+        name = file_name.lower()
+        if not name.endswith((".yaml", ".yml")):
+            return False
+
+        if task_type == "Classify":
+            return "-cls" in name
+        if task_type == "OBB":
+            return "-obb" in name
+        if task_type == "Segment":
+            return "-seg" in name
+        if task_type == "Pose":
+            return "-pose" in name
+        if task_type == "Detect":
+            blocked_tokens = ("-cls", "-obb", "-seg", "-pose")
+            return not any(token in name for token in blocked_tokens)
+        return False
+
+    def _discover_ultralytics_model_configs(self, task_type):
+        root = self._get_ultralytics_model_config_root()
+        if root is None or not root.exists():
+            return []
+
+        options = []
+        for path in sorted(root.rglob("*.yaml")):
+            if not self._is_matching_model_config(task_type, path.name):
+                continue
+            label = f"{path.name} ({path.parent.name})"
+            options.append((label, str(path)))
+        return options
+
+    def refresh_model_config_options(self):
+        model_widget = self.config_widgets.get("model")
+        if model_widget is None or type(model_widget).__name__ != "CustomComboBox":
+            return
+
+        current_path = model_widget.currentData() or model_widget.currentText()
+        task_type = self.selected_task_type or "Detect"
+        options = self._discover_ultralytics_model_configs(task_type)
+        self.ultralytics_model_configs = options
+
+        model_widget.blockSignals(True)
+        model_widget.clear()
+        for label, path in options:
+            model_widget.addItem(label, path)
+
+        if options:
+            selected_index = 0
+            if current_path:
+                for index, (_, path) in enumerate(options):
+                    if path == current_path:
+                        selected_index = index
+                        break
+            model_widget.setCurrentIndex(selected_index)
+            model_widget.setToolTip(model_widget.currentData() or "")
+        else:
+            model_widget.setToolTip("")
+        model_widget.blockSignals(False)
+
+    def on_model_config_changed(self):
+        model_widget = self.config_widgets.get("model")
+        if model_widget is not None:
+            model_widget.setToolTip(model_widget.currentData() or "")
 
     def init_task_configuration(self, parent_layout):
         config_widget = QWidget()
@@ -409,39 +488,12 @@ class UltralyticsDialog(QDialog):
     def browse_model_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            self.tr("Select Model File"),
+            self.tr("Select Model Config"),
             "",
-            "Model Files (*.pt);;All Files (*)",
+            "Model Files (*.yaml *.yml *.pt);;All Files (*)",
         )
         if file_path:
             self.config_widgets["model"].setText(file_path)
-
-    def browse_data_file(self):
-        if self.selected_task_type == "Classify":
-            dir_path = QFileDialog.getExistingDirectory(
-                self, self.tr("Select Classification Dataset Directory"), ""
-            )
-            if dir_path:
-                self.config_widgets["data"].setText(dir_path)
-        else:
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                self.tr("Select Data File"),
-                "",
-                "Text Files (*.yaml);;All Files (*)",
-            )
-            if file_path:
-                is_valid, result = validate_data_file(file_path)
-                if is_valid:
-                    self.config_widgets["data"].setText(file_path)
-                    self.names = result
-                    logger.info(f"Data file loaded successfully: {file_path}")
-                else:
-                    QMessageBox.warning(
-                        self, self.tr("Invalid Data File"), result
-                    )
-                    self.config_widgets["data"].clear()
-                    self.names = []
 
     def browse_pose_config_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -548,20 +600,21 @@ class UltralyticsDialog(QDialog):
         layout.addRow("Name:", self.config_widgets["name"])
 
         model_layout = QHBoxLayout()
-        self.config_widgets["model"] = CustomLineEdit()
-        model_browse_btn = SecondaryButton("Browse")
-        model_browse_btn.clicked.connect(self.browse_model_file)
+        self.config_widgets["model"] = CustomComboBox()
+        self.config_widgets["model"].currentIndexChanged.connect(
+            self.on_model_config_changed
+        )
         model_layout.addWidget(self.config_widgets["model"])
-        model_layout.addWidget(model_browse_btn)
-        layout.addRow("Model:", model_layout)
+        layout.addRow("Model Config:", model_layout)
 
-        data_layout = QHBoxLayout()
         self.config_widgets["data"] = CustomLineEdit()
-        data_browse_btn = SecondaryButton("Browse")
-        data_browse_btn.clicked.connect(self.browse_data_file)
-        data_layout.addWidget(self.config_widgets["data"])
-        data_layout.addWidget(data_browse_btn)
-        layout.addRow("Data:", data_layout)
+        self.config_widgets["data"].setReadOnly(True)
+        self.config_widgets["data"].setText(
+            self.tr(
+                "Auto-generated from current folder images and labels at training time"
+            )
+        )
+        layout.addRow("Data:", self.config_widgets["data"])
 
         pose_config_layout = QHBoxLayout()
         self.config_widgets["pose_config"] = CustomLineEdit()
@@ -594,20 +647,21 @@ class UltralyticsDialog(QDialog):
         layout.addRow("", self.device_hint_label)
         self.refresh_device_options()
         self.on_device_changed(self.config_widgets["device"].currentText())
+        self.refresh_model_config_options()
 
         dataset_layout = QHBoxLayout()
         self.config_widgets["dataset_ratio"] = CustomSlider(
             Qt.Orientation.Horizontal
         )
         self.config_widgets["dataset_ratio"].setRange(5, 95)
-        self.config_widgets["dataset_ratio"].setValue(80)
-        self.dataset_ratio_label = QLabel("0.8")
+        self.config_widgets["dataset_ratio"].setValue(20)
+        self.dataset_ratio_label = QLabel("0.2")
         self.config_widgets["dataset_ratio"].valueChanged.connect(
             lambda v: self.dataset_ratio_label.setText(str(v / 100.0))
         )
         dataset_layout.addWidget(self.config_widgets["dataset_ratio"])
         dataset_layout.addWidget(self.dataset_ratio_label)
-        layout.addRow("Dataset Ratio:", dataset_layout)
+        layout.addRow("Validation Ratio:", dataset_layout)
 
         parent_layout.addWidget(group)
 
@@ -1030,7 +1084,14 @@ class UltralyticsDialog(QDialog):
                 elif widget_type in ["CustomSpinBox", "CustomDoubleSpinBox"]:
                     widget.setValue(value)
                 elif widget_type == "CustomComboBox":
-                    if isinstance(value, str):
+                    if key == "model" and isinstance(value, str):
+                        for index in range(widget.count()):
+                            item_path = widget.itemData(index)
+                            item_label = widget.itemText(index)
+                            if value in (str(item_path), item_label):
+                                widget.setCurrentIndex(index)
+                                break
+                    elif isinstance(value, str):
                         index = widget.findText(value)
                         if index >= 0:
                             widget.setCurrentIndex(index)
@@ -1059,12 +1120,20 @@ class UltralyticsDialog(QDialog):
                 for key, value in config[section].items():
                     if key == "dataset_ratio":
                         if 0 <= value <= 1:
-                            self.config_widgets[key].setValue(int(value * 100))
-                            self.dataset_ratio_label.setText(str(value))
-                        else:
-                            self.config_widgets[key].setValue(int(value))
+                            display_value = value if value <= 0.5 else 1 - value
+                            self.config_widgets[key].setValue(
+                                int(display_value * 100)
+                            )
                             self.dataset_ratio_label.setText(
-                                str(value / 100.0)
+                                str(display_value)
+                            )
+                        else:
+                            display_value = value if value <= 50 else 100 - value
+                            self.config_widgets[key].setValue(
+                                int(display_value)
+                            )
+                            self.dataset_ratio_label.setText(
+                                str(display_value / 100.0)
                             )
                     elif key == "device":
                         index = self.config_widgets[key].findText(str(value))
@@ -1120,6 +1189,8 @@ class UltralyticsDialog(QDialog):
                 elif widget_type in ["CustomSpinBox", "CustomDoubleSpinBox"]:
                     return widget.value()
                 elif widget_type == "CustomComboBox":
+                    if key == "model":
+                        return widget.currentData() or widget.currentText()
                     return widget.currentText()
                 elif widget_type == "CustomCheckBox":
                     return widget.isChecked()
@@ -1134,7 +1205,7 @@ class UltralyticsDialog(QDialog):
                 "project": get_widget_value("project"),
                 "name": get_widget_value("name"),
                 "model": get_widget_value("model").strip('"'),
-                "data": get_widget_value("data").strip('"'),
+                "data": "",
                 "device": get_widget_value("device"),
                 "dataset_ratio": (
                     get_widget_value("dataset_ratio") / 100.0
@@ -1316,6 +1387,19 @@ class UltralyticsDialog(QDialog):
                     ),
                 )
                 return
+
+        self.names = infer_dataset_names(
+            self.image_list, self.selected_task_type, self.output_dir
+        )
+        is_valid_classes, class_error = validate_classes(
+            self.config_widgets["classes"].text(), self.names
+        )
+        if not is_valid_classes:
+            QMessageBox.warning(
+                self, self.tr("Validation Error"), class_error
+            )
+            self.append_training_log(f"Validation Error: {class_error}")
+            return
 
         if self.training_status in ["completed", "error"]:
             reply = QMessageBox.question(
@@ -1752,30 +1836,31 @@ class UltralyticsDialog(QDialog):
 
     def get_training_args(self, config):
         try:
-            if self.selected_task_type == "Classify" and os.path.isdir(
-                config["basic"]["data"]
-            ):
-                data_path = config["basic"]["data"]
-                self.append_training_log(
-                    f"Using existing dataset: {data_path}"
-                )
-            else:
-                temp_dir = create_yolo_dataset(
-                    self.image_list,
-                    self.selected_task_type,
-                    config["basic"]["dataset_ratio"],
-                    config["basic"]["data"],
-                    self.output_dir,
-                    config["basic"].get("pose_config"),
-                    config["checkpoint"].get("skip_empty_files", False),
-                )
-                logger.info(f"Successfully created YOLO dataset at {temp_dir}")
-                self.append_training_log(f"Created dataset: {temp_dir}")
+            self.names = infer_dataset_names(
+                self.image_list, self.selected_task_type, self.output_dir
+            )
+            temp_dir = create_yolo_dataset(
+                self.image_list,
+                self.selected_task_type,
+                config["basic"]["dataset_ratio"],
+                config["basic"]["data"],
+                self.output_dir,
+                config["basic"].get("pose_config"),
+                config["checkpoint"].get("skip_empty_files", False),
+                class_names=self.names,
+            )
+            logger.info(f"Successfully created YOLO dataset at {temp_dir}")
+            self.append_training_log(f"Created dataset: {temp_dir}")
 
-                if self.selected_task_type == "Classify":
-                    data_path = temp_dir
-                else:
-                    data_path = os.path.join(temp_dir, "data.yaml")
+            if self.names:
+                self.append_training_log(
+                    f"Inferred classes: {', '.join(self.names)}"
+                )
+
+            if self.selected_task_type == "Classify":
+                data_path = temp_dir
+            else:
+                data_path = os.path.join(temp_dir, "data.yaml")
 
             device_value = config["basic"]["device"]
             if device_value == "cuda" and hasattr(self, "device_checkboxes"):
