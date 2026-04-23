@@ -2077,8 +2077,9 @@ class Canvas(
         deleted_shapes = []
         if self.selected_shapes:
             for shape in self.selected_shapes:
-                self.shapes.remove(shape)
-                deleted_shapes.append(shape)
+                if shape in self.shapes:
+                    self.shapes.remove(shape)
+                    deleted_shapes.append(shape)
             self.store_shapes()
             self.selected_shapes = []
             self.update()
@@ -2088,6 +2089,11 @@ class Canvas(
         """Remove a specific shape"""
         if shape in self.selected_shapes:
             self.selected_shapes.remove(shape)
+        self.selected_shapes_copy = [
+            copied_shape
+            for copied_shape in self.selected_shapes_copy
+            if copied_shape != shape
+        ]
         if shape in self.shapes:
             self.shapes.remove(shape)
         self.store_shapes()
