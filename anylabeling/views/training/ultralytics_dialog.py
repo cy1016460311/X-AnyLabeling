@@ -929,6 +929,46 @@ class UltralyticsDialog(QDialog):
                 0.001,
                 6,
             ),
+            (
+                "fliplr",
+                "Flip LR:",
+                DEFAULT_TRAINING_CONFIG["fliplr"],
+                0.0,
+                1.0,
+                3,
+            ),
+            (
+                "flipud",
+                "Flip UD:",
+                DEFAULT_TRAINING_CONFIG["flipud"],
+                0.0,
+                1.0,
+                3,
+            ),
+            (
+                "mosaic",
+                "Mosaic:",
+                DEFAULT_TRAINING_CONFIG["mosaic"],
+                0.0,
+                1.0,
+                3,
+            ),
+            (
+                "mixup",
+                "MixUp:",
+                DEFAULT_TRAINING_CONFIG["mixup"],
+                0.0,
+                1.0,
+                3,
+            ),
+            (
+                "copy_paste",
+                "Copy Paste:",
+                DEFAULT_TRAINING_CONFIG["copy_paste"],
+                0.0,
+                1.0,
+                3,
+            ),
         ]
 
         grid_layout = QGridLayout()
@@ -1253,6 +1293,11 @@ class UltralyticsDialog(QDialog):
                 "scale": get_widget_value("scale"),
                 "shear": get_widget_value("shear"),
                 "perspective": get_widget_value("perspective"),
+                "fliplr": get_widget_value("fliplr"),
+                "flipud": get_widget_value("flipud"),
+                "mosaic": get_widget_value("mosaic"),
+                "mixup": get_widget_value("mixup"),
+                "copy_paste": get_widget_value("copy_paste"),
             },
             "regularization": {
                 "dropout": get_widget_value("dropout"),
