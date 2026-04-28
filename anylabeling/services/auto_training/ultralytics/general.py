@@ -58,6 +58,7 @@ def create_yolo_dataset(
         image_label_pairs, images_dir, labels_dir, converter, mode, skip_empty
     ):
         for image_file, label_file in image_label_pairs:
+            # Preserve the original exported filename exactly as the source basename.
             filename = os.path.basename(image_file)
             dst_image_path = os.path.join(images_dir, filename)
 
@@ -211,14 +212,18 @@ def create_yolo_dataset(
             background_images.append(image_file)
             continue
 
-    # ensure train/val split is randomized
+    # Ensure train/val split is randomized for both positive and background samples.
     valid_images = random.sample(valid_images, k=len(valid_images))
+    background_images = random.sample(background_images, k=len(background_images))
 
     validation_ratio = max(0.0, min(0.95, validation_ratio))
     train_ratio = 1.0 - validation_ratio
     train_count = int(len(valid_images) * train_ratio)
+    background_train_count = int(len(background_images) * train_ratio)
     train_valid_images = valid_images[:train_count]
     val_valid_images = valid_images[train_count:]
+    train_background_images = background_images[:background_train_count]
+    val_background_images = background_images[background_train_count:]
 
     if task_type == "Classify":
         _process_classify_images_batch(train_valid_images, train_dir)
@@ -226,10 +231,14 @@ def create_yolo_dataset(
     else:
         if skip_empty_files:
             all_train_images = train_valid_images
+            all_val_images = val_valid_images
         else:
             all_train_images = [
-                (img, None) for img in background_images
+                (img, None) for img in train_background_images
             ] + train_valid_images
+            all_val_images = [
+                (img, None) for img in val_background_images
+            ] + val_valid_images
 
         mode = TASK_LABEL_MAPPINGS.get(task_type, "hbb")
         _process_images_batch(
@@ -241,7 +250,7 @@ def create_yolo_dataset(
             skip_empty_files,
         )
         _process_images_batch(
-            val_valid_images,
+            all_val_images,
             val_images_dir,
             val_labels_dir,
             converter,
@@ -261,8 +270,14 @@ def create_yolo_dataset(
             f.write(f"Val images: {len(val_valid_images)}\n")
         else:
             f.write(f"Train images: {len(all_train_images)}\n")
-            f.write(f"Val images: {len(val_valid_images)}\n")
+            f.write(f"Val images: {len(all_val_images)}\n")
             f.write(f"Background images: {len(background_images)}\n")
+            f.write(
+                f"Train background images: {len(train_background_images)}\n"
+            )
+            f.write(
+                f"Val background images: {len(val_background_images)}\n"
+            )
             f.write(f"Skip empty files: {skip_empty_files}\n")
         f.write(f"Valid labeled images: {len(valid_images)}\n")
         f.write(f"Validation ratio: {validation_ratio}\n")
