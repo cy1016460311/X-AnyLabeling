@@ -22,6 +22,7 @@ from typing import Any, Dict, List
 from anylabeling.app_info import __version__
 from anylabeling.views.labeling.logger import logger
 from anylabeling.views.labeling.schema import create_xlabel_template
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
 from anylabeling.views.labeling.utils.shape import rectangle_from_diagonal
 from anylabeling.views.labeling.utils.general import is_possible_rectangle
 
@@ -973,7 +974,7 @@ class LabelConverter:
             else:
                 data_to_shape[frame_id].append(info)
 
-        file_list = os.listdir(image_path)
+        file_list = listdir_without_metadata(image_path)
         for file_name in file_list:
             if file_name.endswith(".json"):
                 continue
@@ -1830,7 +1831,7 @@ class LabelConverter:
         }
         seg_len, im_widht, im_height, im_ext = 0, None, None, None
 
-        label_file_list = os.listdir(input_path)
+        label_file_list = listdir_without_metadata(input_path)
         label_file_list.sort(
             key=lambda x: (
                 int(osp.splitext(x.rsplit("-", 1)[-1])[0])
@@ -1931,7 +1932,7 @@ class LabelConverter:
         }
         seg_len, im_widht, im_height, im_ext = 0, None, None, None
 
-        label_file_list = os.listdir(input_path)
+        label_file_list = listdir_without_metadata(input_path)
         label_file_list.sort(
             key=lambda x: (
                 int(osp.splitext(x.rsplit("-", 1)[-1])[0])

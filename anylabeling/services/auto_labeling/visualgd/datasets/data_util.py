@@ -6,6 +6,8 @@ import datetime
 
 import torch
 
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
+
 from ..util.slconfig import SLConfig
 
 
@@ -60,7 +62,7 @@ def slcopytree(
     """
     errors = []
     if os.path.isdir(src):
-        names = os.listdir(src)
+        names = listdir_without_metadata(src)
         if ignore is not None:
             ignored_names = ignore(src, names)
         else:

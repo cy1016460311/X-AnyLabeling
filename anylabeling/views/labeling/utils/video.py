@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 
 from anylabeling.views.labeling.chatbot.style import ChatbotDialogStyle
 from anylabeling.views.labeling.logger import logger
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
 from anylabeling.views.labeling.utils.qt import new_icon_path
 from anylabeling.views.labeling.utils.style import (
     get_msg_box_style,
@@ -345,7 +346,7 @@ def extract_frames_from_video(self, input_file, out_dir):
                                 saved_frame_count = len(
                                     [
                                         name
-                                        for name in os.listdir(out_dir)
+                                        for name in listdir_without_metadata(out_dir)
                                         if name.startswith(prefix)
                                         and name.endswith(".jpg")
                                     ]
@@ -609,7 +610,7 @@ def open_video_file(self):
             f"Frame extraction failed or was cancelled for: {input_file}"
         )
         # Optional: Clean up empty output directory if extraction failed completely before starting
-        if osp.exists(out_dir) and not os.listdir(out_dir):
+        if osp.exists(out_dir) and not listdir_without_metadata(out_dir):
             try:
                 os.rmdir(out_dir)
                 logger.info(f"Removed empty output directory: {out_dir}")

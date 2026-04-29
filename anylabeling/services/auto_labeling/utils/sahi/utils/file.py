@@ -14,6 +14,8 @@ from typing import Optional
 
 import numpy as np
 
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
+
 
 def unzip(file_path: str, dest_dir: str):
     """
@@ -103,7 +105,7 @@ def list_files(
 
     filepath_list = []
 
-    for file in os.listdir(directory):
+    for file in listdir_without_metadata(directory):
         # check if filename contains any of the terms given in contains list
         if any(strtocheck in file.lower() for strtocheck in contains):
             filepath = os.path.join(directory, file)

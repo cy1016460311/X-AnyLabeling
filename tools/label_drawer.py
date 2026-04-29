@@ -9,6 +9,9 @@ import cv2
 import natsort
 import numpy as np
 from tqdm import tqdm
+from anylabeling.views.labeling.utils.filesystem import (
+    listdir_without_metadata,
+)
 
 try:
     import supervision as sv
@@ -55,7 +58,7 @@ def create_video_from_images(image_folder, output_video_path, frame_rate=25):
     # get all image files in the folder
     image_files = [
         f
-        for f in os.listdir(image_folder)
+        for f in listdir_without_metadata(image_folder)
         if os.path.splitext(f)[1] in valid_extensions
     ]
     image_files = natsort.natsorted(image_files)
@@ -120,7 +123,7 @@ def draw_polygon_from_custom(
     os.makedirs(save_dir, exist_ok=True)
 
     # Sort and process image files
-    image_list = os.listdir(image_path)
+    image_list = listdir_without_metadata(image_path)
     sorted_image_list = natsort.natsorted(image_list)
     valid_extensions = [".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".PNG"]
 
@@ -258,7 +261,7 @@ def draw_rectangle_from_custom(
     os.makedirs(save_dir, exist_ok=True)
 
     # Retrieve and sort image files
-    image_list = os.listdir(image_path)
+    image_list = listdir_without_metadata(image_path)
     sorted_image_list = natsort.natsorted(image_list)
     valid_extensions = [".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".PNG"]
 
@@ -399,7 +402,7 @@ def draw_rotation_from_custom(
     os.makedirs(save_dir, exist_ok=True)
 
     # Retrieve and sort image files
-    image_list = os.listdir(image_path)
+    image_list = listdir_without_metadata(image_path)
     sorted_image_list = natsort.natsorted(image_list)
     valid_extensions = [".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".PNG"]
 

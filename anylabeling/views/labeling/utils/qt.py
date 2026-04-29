@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from anylabeling.views.labeling.logger import logger
+from anylabeling.views.labeling.utils.filesystem import is_macos_metadata_file
 
 
 def scan_all_images(folder_path):
@@ -22,6 +23,8 @@ def scan_all_images(folder_path):
 
         for root, _, files in os.walk(folder_path):
             for file in files:
+                if is_macos_metadata_file(file):
+                    continue
                 if file.lower().endswith(tuple(extensions)):
                     relative_path = osp.normpath(osp.join(root, file))
                     relative_path = str(relative_path)

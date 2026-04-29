@@ -18,6 +18,9 @@ import sys
 
 sys.path.append(".")
 from anylabeling.app_info import __version__  # noqa: E402
+from anylabeling.views.labeling.utils.filesystem import (  # noqa: E402
+    listdir_without_metadata,
+)
 
 VERSION = __version__
 
@@ -300,7 +303,7 @@ class RectLabelConverter(BaseLabelConverter):
         image_id = 0
         annotation_id = 0
 
-        file_list = os.listdir(input_path)
+        file_list = listdir_without_metadata(input_path)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
         ):
@@ -364,7 +367,7 @@ class RectLabelConverter(BaseLabelConverter):
         )
 
         img_dic = {}
-        for file in os.listdir(image_path):
+        for file in listdir_without_metadata(image_path):
             img_dic[file] = file
 
         with open(input_file, "r", encoding="utf-8") as f:
@@ -481,7 +484,7 @@ class PolyLabelConvert(BaseLabelConverter):
         image_id = 0
         annotation_id = 0
 
-        file_list = os.listdir(input_path)
+        file_list = listdir_without_metadata(input_path)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
         ):
@@ -602,7 +605,7 @@ class PolyLabelConvert(BaseLabelConverter):
 
     def coco_to_custom(self, input_file, image_path, output_path):
         img_dic = {}
-        for file in os.listdir(image_path):
+        for file in listdir_without_metadata(image_path):
             img_dic[file] = file
 
         with open(input_file, "r", encoding="utf-8") as f:
@@ -731,7 +734,7 @@ class RotateLabelConverter(BaseLabelConverter):
         image_id = 0
         annotation_id = 0
 
-        file_list = os.listdir(image_path)
+        file_list = listdir_without_metadata(image_path)
         for image_file in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
         ):
@@ -1036,7 +1039,7 @@ def main():  # noqa: C901
         ), f"MOTS tasks are only supported in {valid_modes} now!"
 
     if args.mode == "custom2voc":
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
@@ -1049,7 +1052,7 @@ def main():  # noqa: C901
             )
             converter.custom_to_voc2017(src_file, dst_file)
     elif args.mode == "voc2custom":
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
@@ -1060,7 +1063,7 @@ def main():  # noqa: C901
             )
             converter.voc2017_to_custom(src_file, dst_file)
     elif args.mode == "custom2yolo":
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
@@ -1075,10 +1078,10 @@ def main():  # noqa: C901
     elif args.mode == "yolo2custom":
         img_dic = {}
         os.makedirs(args.dst_path, exist_ok=True)
-        for file in os.listdir(args.img_path):
+        for file in listdir_without_metadata(args.img_path):
             prefix = file.rsplit(".", 1)[0]
             img_dic[prefix] = file
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
         ):
@@ -1097,7 +1100,7 @@ def main():  # noqa: C901
         os.makedirs(args.dst_path, exist_ok=True)
         converter.coco_to_custom(args.src_path, args.img_path, args.dst_path)
     elif args.mode == "custom2dota":
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
@@ -1111,10 +1114,10 @@ def main():  # noqa: C901
             converter.custom_to_dota(src_file, dst_file)
     elif args.mode == "dota2custom":
         img_dic = {}
-        for file in os.listdir(args.img_path):
+        for file in listdir_without_metadata(args.img_path):
             prefix = file.rsplit(".", 1)[0]
             img_dic[prefix] = file
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"
         ):
@@ -1131,7 +1134,7 @@ def main():  # noqa: C901
     elif args.mode == "dcoco2dota":
         converter.dcoco_to_dota(args.src_path, args.dst_path)
     elif args.mode == "dxml2dota":
-        file_list = os.listdir(args.src_path)
+        file_list = listdir_without_metadata(args.src_path)
         os.makedirs(args.dst_path, exist_ok=True)
         for file_name in tqdm(
             file_list, desc="Converting files", unit="file", colour="green"

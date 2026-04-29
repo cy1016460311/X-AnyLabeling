@@ -21,6 +21,10 @@ from .general import (
     is_chinese,
     find_most_similar_label,
 )
+from .filesystem import (
+    is_macos_metadata_file,
+    listdir_without_metadata,
+)
 from .image import (
     check_img_exif,
     get_pil_img_dim,

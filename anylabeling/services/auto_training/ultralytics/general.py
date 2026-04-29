@@ -13,6 +13,9 @@ from .config import (
     TASK_SHAPE_MAPPINGS,
 )
 from .utils import get_label_infos
+from anylabeling.views.labeling.utils.filesystem import (
+    listdir_without_metadata,
+)
 
 
 def infer_dataset_names(
@@ -290,7 +293,7 @@ def create_yolo_dataset(
         if os.path.exists(train_dir):
             class_dirs = [
                 d
-                for d in os.listdir(train_dir)
+                for d in listdir_without_metadata(train_dir)
                 if os.path.isdir(os.path.join(train_dir, d))
             ]
             for i, class_name in enumerate(sorted(class_dirs)):

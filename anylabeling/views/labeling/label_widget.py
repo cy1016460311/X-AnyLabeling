@@ -2879,7 +2879,9 @@ class LabelingWidget(LabelDialog):
             if osp.exists(label_file):
                 label_file_list = [label_file]
         elif self.image_list and not self.output_dir and self.filename:
-            file_list = os.listdir(osp.dirname(self.filename))
+            file_list = utils.listdir_without_metadata(
+                osp.dirname(self.filename)
+            )
             for file_name in file_list:
                 if not file_name.endswith(".json"):
                     continue
@@ -2887,7 +2889,7 @@ class LabelingWidget(LabelDialog):
                     osp.join(osp.dirname(self.filename), file_name)
                 )
         if self.output_dir:
-            for file_name in os.listdir(self.output_dir):
+            for file_name in utils.listdir_without_metadata(self.output_dir):
                 if not file_name.endswith(".json"):
                     continue
                 label_file_list.append(osp.join(self.output_dir, file_name))

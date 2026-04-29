@@ -46,6 +46,7 @@ from anylabeling.app_info import __version__
 from anylabeling.config import get_work_directory
 from anylabeling.views.labeling.chatbot import *
 from anylabeling.views.labeling.logger import logger
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
 from anylabeling.views.labeling.utils.general import open_url
 from anylabeling.views.labeling.utils.qt import new_icon, new_icon_path
 from anylabeling.views.labeling.widgets.model_dropdown_widget import (
@@ -1727,7 +1728,9 @@ class ChatbotDialog(QDialog):
 
             try:
                 json_files = [
-                    f for f in os.listdir(current_dir) if f.endswith(".json")
+                    f
+                    for f in listdir_without_metadata(current_dir)
+                    if f.endswith(".json")
                 ]
 
                 if not json_files:
@@ -1807,7 +1810,7 @@ class ChatbotDialog(QDialog):
                     zipf.write(
                         dataset_json_path, arcname=f"{export_filename}.json"
                     )
-                    for img in os.listdir(temp_images_dir):
+                    for img in listdir_without_metadata(temp_images_dir):
                         img_path = os.path.join(temp_images_dir, img)
                         zipf.write(img_path, arcname=f"images/{img}")
 

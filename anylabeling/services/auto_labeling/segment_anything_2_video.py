@@ -12,6 +12,9 @@ from PyQt6.QtCore import QCoreApplication
 
 from anylabeling.views.labeling.shape import Shape
 from anylabeling.views.labeling.logger import logger
+from anylabeling.views.labeling.utils.filesystem import (
+    listdir_without_metadata,
+)
 from anylabeling.views.labeling.utils.opencv import (
     get_bounding_boxes,
     qt_img_to_rgb_cv_img,
@@ -500,7 +503,7 @@ class SegmentAnything2Video(Model):
         """
         frame_names = [
             p
-            for p in os.listdir(os.path.dirname(filename))
+            for p in listdir_without_metadata(os.path.dirname(filename))
             if os.path.splitext(p)[-1] in [".jpg", ".jpeg", ".JPG", ".JPEG"]
         ]
         if not frame_names:

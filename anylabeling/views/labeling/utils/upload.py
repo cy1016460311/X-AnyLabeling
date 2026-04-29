@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 from anylabeling.views.labeling.label_converter import LabelConverter
 from anylabeling.views.labeling.logger import logger
 from anylabeling.views.labeling.widgets import Popup
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
 from anylabeling.views.labeling.utils.qt import new_icon_path
 from anylabeling.views.labeling.utils.style import *
 from anylabeling.views.labeling.utils.export import _check_filename_exist
@@ -564,8 +565,8 @@ def upload_mmgd_annotation(self, LABEL_OPACITY):
 
     label_dir_path = path_edit.text()
     image_dir_path = osp.dirname(self.filename)
-    image_file_list = os.listdir(image_dir_path)
-    label_file_list = os.listdir(label_dir_path)
+    image_file_list = listdir_without_metadata(image_dir_path)
+    label_file_list = listdir_without_metadata(label_dir_path)
     output_dir_path = self.output_dir if self.output_dir else image_dir_path
     converter = LabelConverter(classes_file=classes_file)
 
@@ -885,8 +886,8 @@ def upload_mask_annotation(self, LABEL_OPACITY):
 
     label_dir_path = path_edit.text()
     image_dir_path = osp.dirname(self.filename)
-    image_file_list = os.listdir(image_dir_path)
-    label_file_list = os.listdir(label_dir_path)
+    image_file_list = listdir_without_metadata(image_dir_path)
+    label_file_list = listdir_without_metadata(label_dir_path)
     output_dir_path = self.output_dir if self.output_dir else image_dir_path
     converter = LabelConverter()
 
@@ -1027,7 +1028,7 @@ def upload_dota_annotation(self):
 
     label_dir_path = path_edit.text()
     image_dir_path = osp.dirname(self.filename)
-    label_file_list = os.listdir(label_dir_path)
+    label_file_list = listdir_without_metadata(label_dir_path)
     output_dir_path = self.output_dir if self.output_dir else image_dir_path
     converter = LabelConverter()
 
@@ -1266,7 +1267,7 @@ def upload_voc_annotation(self, mode):
 
     label_dir_path = path_edit.text()
     image_dir_path = osp.dirname(self.filename)
-    label_file_list = os.listdir(label_dir_path)
+    label_file_list = listdir_without_metadata(label_dir_path)
     output_dir_path = self.output_dir if self.output_dir else image_dir_path
     converter = LabelConverter()
 
@@ -1471,8 +1472,8 @@ def upload_yolo_annotation(self, mode, LABEL_OPACITY):
     label_dir_path = path_edit.text()
     preserve_existing = preserve_checkbox.isChecked()
     image_dir_path = osp.dirname(self.filename)
-    image_file_list = os.listdir(image_dir_path)
-    label_file_list = os.listdir(label_dir_path)
+    image_file_list = listdir_without_metadata(image_dir_path)
+    label_file_list = listdir_without_metadata(label_dir_path)
     output_dir_path = self.output_dir if self.output_dir else image_dir_path
 
     response = QtWidgets.QMessageBox()

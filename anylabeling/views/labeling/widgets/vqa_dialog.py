@@ -31,6 +31,7 @@ from PyQt6.QtGui import (
 from anylabeling.views.labeling.vqa import *
 from anylabeling.views.labeling.utils.qt import new_icon
 from anylabeling.views.labeling.logger import logger
+from anylabeling.views.labeling.utils.filesystem import listdir_without_metadata
 from anylabeling.views.labeling.vqa.dialogs import ExportLabelsDialog
 from anylabeling.views.labeling.widgets.popup import Popup
 
@@ -1701,7 +1702,7 @@ class VQADialog(QDialog):
         """
         if self.parent().output_dir:
             label_dir = self.parent().output_dir
-            for file_name in os.listdir(label_dir):
+            for file_name in listdir_without_metadata(label_dir):
                 if file_name.endswith(".json"):
                     label_file = os.path.join(label_dir, file_name)
                     callback(label_file)
